@@ -1,0 +1,84 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta name="description" content="Get in touch with KAL — Let’s build something great." />
+  <title>Contact — KAL</title>
+  <link rel="stylesheet" href="styles.css" />
+</head>
+<body class="page-contact">
+  <a class="skip-link" href="#contact-main">Skip to form</a>
+
+  <div class="contact-layout">
+    <aside class="contact-visual" aria-hidden="false">
+      <div class="contact-visual__bg"></div>
+      <div class="contact-visual__overlay"></div>
+      <div class="contact-visual__content">
+        <header class="contact-visual__header">
+          <a class="logo logo--contact" href="index.html" aria-label="KAL home">
+            <span class="logo__icon" aria-hidden="true"></span>
+            <span class="logo__word">KAL</span>
+          </a>
+          <button type="button" class="nav-toggle nav-toggle--contact" aria-expanded="false" aria-controls="contact-overlay" data-contact-nav-toggle>
+            <span></span><span></span><span></span>
+            <span class="visually-hidden">Menu</span>
+          </button>
+        </header>
+        <div id="contact-nav-panel" class="contact-visual__copy">
+          <p class="contact-visual__eyebrow">GET IN TOUCH</p>
+          <h1 class="contact-visual__title">LET’S BUILD SOMETHING GREAT</h1>
+          <p class="contact-visual__text">We’re ready when you are. Our team thrives on solving complex problems. Let’s get to work!</p>
+        </div>
+      </div>
+      <div class="contact-overlay" id="contact-overlay" hidden data-contact-overlay>
+        <nav class="contact-overlay__nav" aria-label="Mobile">
+          <a href="index.html#work">WORK</a>
+          <a href="index.html#services">SERVICES</a>
+          <a href="index.html#about">ABOUT</a>
+          <a href="index.html#studio">STUDIO</a>
+          <a href="contact.html">ENQUIRE</a>
+        </nav>
+      </div>
+    </aside>
+
+    <main id="contact-main" class="contact-form-wrap">
+      <div class="contact-form-inner">
+        <a class="contact-back" href="index.html"><span class="caret caret--left" aria-hidden="true"></span> Back</a>
+        <form class="madlib-form" data-contact-form novalidate>
+          <p class="madlib-line">
+            Hi <strong>KAL</strong>, my name is
+            <input type="text" name="name" placeholder="Your name" autocomplete="name" required aria-label="Your name" />
+          </p>
+          <p class="madlib-line">
+            and I’m looking to
+            <input type="text" name="looking_for" placeholder="start a project" aria-label="What you are looking for" />
+          </p>
+          <p class="madlib-line">
+            I’m based in
+            <input type="text" name="country" placeholder="select country" autocomplete="country-name" aria-label="Country" />
+          </p>
+          <p class="madlib-line">
+            You can get back to me at
+            <input type="email" name="email" placeholder="email" autocomplete="email" required aria-label="Email" />
+          </p>
+          <p class="madlib-line">
+            My website or socials are
+            <input type="url" name="website" placeholder="website or socials" autocomplete="url" aria-label="Website or socials" />
+          </p>
+          <p class="madlib-line">
+            I found you on
+            <input type="text" name="referral" placeholder="I found you on" aria-label="How you found us" />
+          </p>
+          <label class="madlib-textarea-label visually-hidden" for="msg">Your message</label>
+          <textarea id="msg" name="message" class="madlib-textarea" rows="6" placeholder="How can we help you, write your message here" required></textarea>
+          <button type="submit" class="btn btn--lime btn--send">SEND MESSAGE</button>
+          <p class="form-feedback" data-form-feedback role="status" aria-live="polite"></p>
+        </form>
+      </div>
+    </main>
+  </div>
+
+  <script src="main.js" defer></script>
+</body>
+</html>

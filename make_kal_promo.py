@@ -17,7 +17,6 @@ from PIL import Image, ImageDraw, ImageFont, ImageFilter
 ROOT = Path(__file__).resolve().parent
 FRAMES = ROOT / "promo_frames"
 OUT = ROOT / "KAL_promo_video.mp4"
-LOGO = ROOT / "logo.png"
 
 W, H = 1920, 1080
 FPS = 30
@@ -49,8 +48,6 @@ F_HEAD = font(112)
 F_SUB = font(42)
 F_SMALL = font(28)
 F_TINY = font(20)
-
-logo = Image.open(LOGO).convert("RGBA")
 
 if FRAMES.exists():
     shutil.rmtree(FRAMES)
@@ -104,11 +101,67 @@ def background(t):
     add_vignette(img, 170)
     return img
 
-def paste_logo(img, cx, cy, size, alpha=255):
-    ratio = logo.width / logo.height
-    mark = logo.resize((int(size * ratio), int(size)), Image.Resampling.LANCZOS)
-    if alpha < 255:
-        mark.putalpha(mark.getchannel("A").point(lambda p: int(p * alpha / 255)))
+def make_vector_logo(height, color=WHITE, alpha=255):
+    """Draw a crisp KAL logo instead of scaling the tiny 90x20 PNG.
+
+    The source logo is a small bitmap. This recreates the same structure:
+    a triangular line mark, a vertical divider, and bold KAL wordmark.
+    It is drawn oversampled then downscaled for anti-aliased, non-pixelated output.
+    """
+    scale = 4
+    h = int(height * scale)
+    icon_w = int(h * 1.35)
+    gap = int(h * 0.20)
+    divider_w = max(2 * scale, int(h * 0.09))
+    text_font = font(int(h * 0.95))
+
+    probe = Image.new("RGBA", (10, 10), (0, 0, 0, 0))
+    pd = ImageDraw.Draw(probe)
+    tb = pd.textbbox((0, 0), "KAL", font=text_font)
+    text_w = tb[2] - tb[0]
+    text_h = tb[3] - tb[1]
+    w = icon_w + gap + divider_w + gap + text_w
+
+    mark = Image.new("RGBA", (w + 12 * scale, h + 10 * scale), (0, 0, 0, 0))
+    d = ImageDraw.Draw(mark)
+    c = color + (int(alpha),)
+    line = max(2 * scale, int(h * 0.065))
+    x0 = 6 * scale
+    y0 = 5 * scale
+    icon_h = int(h * 0.72)
+    icon_y = y0 + int(h * 0.14)
+
+    # angular triangular icon, matching the supplied logo silhouette
+    pts = [
+        (x0, icon_y + icon_h),
+        (x0 + int(icon_w * 0.46), icon_y),
+        (x0 + icon_w, icon_y + icon_h),
+        (x0, icon_y + icon_h),
+    ]
+    d.line(pts, fill=c, width=line, joint="curve")
+    d.line(
+        [(x0 + int(icon_w * 0.18), icon_y + int(icon_h * 0.56)),
+         (x0 + int(icon_w * 0.78), icon_y + int(icon_h * 0.56))],
+        fill=c,
+        width=max(1 * scale, line // 2),
+    )
+
+    # vertical separator
+    div_x = x0 + icon_w + gap
+    d.rectangle([div_x, icon_y, div_x + divider_w, icon_y + icon_h], fill=c)
+
+    # wordmark
+    text_x = div_x + divider_w + gap
+    text_y = int((mark.height - text_h) / 2 - tb[1])
+    d.text((text_x, text_y), "KAL", font=text_font, fill=c)
+
+    out_w = max(1, int(mark.width / scale))
+    out_h = max(1, int(mark.height / scale))
+    return mark.resize((out_w, out_h), Image.Resampling.LANCZOS)
+
+
+def paste_logo(img, cx, cy, height, alpha=255, color=WHITE):
+    mark = make_vector_logo(height, color=color, alpha=alpha)
     img.alpha_composite(mark, (int(cx - mark.width / 2), int(cy - mark.height / 2)))
 
 def draw_rule(draw, y, progress, alpha=210):

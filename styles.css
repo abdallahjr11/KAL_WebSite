@@ -486,6 +486,207 @@ a {
   opacity: 1;
 }
 
+/* ----- KAL HyperFrames animation ----- */
+.kal-hyper {
+  position: relative;
+  overflow: hidden;
+  background: var(--black);
+  padding: clamp(3rem, 9vw, 7rem) 0;
+  border-block: 1px solid rgba(223, 255, 0, 0.22);
+}
+
+.kal-hyper::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  opacity: 0.22;
+  background:
+    linear-gradient(rgba(223, 255, 0, 0.1) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(223, 255, 0, 0.1) 1px, transparent 1px);
+  background-size: 44px 44px;
+  transform: skewY(-4deg) scale(1.1);
+  animation: kal-grid-drift 12s linear infinite;
+  pointer-events: none;
+}
+
+.kal-hyper__grid {
+  position: relative;
+  z-index: 1;
+  display: grid;
+  grid-template-columns: minmax(0, 0.8fr) minmax(280px, 1fr);
+  gap: clamp(2rem, 7vw, 6rem);
+  align-items: center;
+}
+
+.kal-hyper__eyebrow {
+  margin: 0 0 1rem;
+  color: var(--lime);
+  font-size: 0.72rem;
+  font-weight: 800;
+  letter-spacing: 0.22em;
+}
+
+.kal-hyper__title {
+  margin: 0 0 1rem;
+  color: var(--white);
+  font-size: clamp(2rem, 6vw, 5rem);
+  font-weight: 900;
+  line-height: 0.95;
+  letter-spacing: -0.035em;
+  text-transform: uppercase;
+}
+
+.kal-hyper__text {
+  max-width: 34ch;
+  margin: 0;
+  color: var(--grey);
+  font-size: clamp(0.95rem, 2vw, 1.1rem);
+}
+
+.kal-hyper__stage {
+  position: relative;
+  display: grid;
+  place-items: center;
+  min-height: clamp(320px, 48vw, 560px);
+  background: var(--charcoal);
+  isolation: isolate;
+  overflow: hidden;
+}
+
+.kal-hyper__stage::before,
+.kal-hyper__stage::after {
+  content: "";
+  position: absolute;
+  z-index: -1;
+  inset: 12%;
+  border: 1px solid rgba(255, 255, 255, 0.16);
+  animation: kal-frame-pulse 4.8s var(--ease) infinite;
+}
+
+.kal-hyper__stage::after {
+  inset: 23%;
+  border-color: rgba(223, 255, 0, 0.34);
+  animation-delay: -1.6s;
+}
+
+.kal-hyper__frame {
+  position: absolute;
+  width: 62%;
+  aspect-ratio: 1;
+  border: 2px solid var(--lime);
+  mix-blend-mode: screen;
+  animation: kal-orbit 7s var(--ease) infinite;
+}
+
+.kal-hyper__frame--two {
+  width: 46%;
+  border-color: var(--white);
+  animation-name: kal-orbit-reverse;
+  animation-delay: -2.1s;
+}
+
+.kal-hyper__scan {
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(180deg, transparent 0%, rgba(223, 255, 0, 0.24) 48%, transparent 56%);
+  transform: translateY(-105%);
+  animation: kal-scan 3.8s linear infinite;
+  pointer-events: none;
+}
+
+.kal-hyper__logo {
+  width: clamp(88px, 16vw, 180px);
+  height: auto;
+  filter: drop-shadow(0 0 22px rgba(223, 255, 0, 0.35));
+  animation: kal-logo-lock 3.2s var(--ease) infinite;
+}
+
+.kal-hyper__word {
+  position: absolute;
+  bottom: clamp(1.25rem, 4vw, 2.5rem);
+  left: clamp(1.25rem, 4vw, 2.5rem);
+  display: flex;
+  gap: 0.12em;
+  color: var(--lime);
+  font-size: clamp(3.5rem, 12vw, 8.5rem);
+  font-weight: 900;
+  line-height: 0.75;
+  letter-spacing: -0.08em;
+}
+
+.kal-hyper__word span {
+  display: inline-block;
+  animation: kal-letter-hit 2.4s var(--ease) infinite;
+}
+
+.kal-hyper__word span:nth-child(2) {
+  animation-delay: 0.13s;
+}
+
+.kal-hyper__word span:nth-child(3) {
+  animation-delay: 0.26s;
+}
+
+@keyframes kal-grid-drift {
+  to { background-position: 88px 44px, 88px 44px; }
+}
+
+@keyframes kal-frame-pulse {
+  0%, 100% { transform: scale(0.92); opacity: 0.25; }
+  50% { transform: scale(1.04); opacity: 0.85; }
+}
+
+@keyframes kal-orbit {
+  0%, 100% { transform: rotate(0deg) scale(0.9); opacity: 0.35; }
+  45% { transform: rotate(12deg) scale(1.06); opacity: 1; }
+  70% { transform: rotate(-5deg) scale(0.96); opacity: 0.7; }
+}
+
+@keyframes kal-orbit-reverse {
+  0%, 100% { transform: rotate(0deg) scale(1); opacity: 0.28; }
+  50% { transform: rotate(-18deg) scale(1.14); opacity: 0.86; }
+}
+
+@keyframes kal-scan {
+  0%, 18% { transform: translateY(-105%); }
+  55%, 100% { transform: translateY(105%); }
+}
+
+@keyframes kal-logo-lock {
+  0%, 100% { transform: scale(1); }
+  42% { transform: scale(1.08); }
+  46% { transform: translateX(-2px) scale(1.08); }
+  50% { transform: translateX(2px) scale(1.08); }
+  54% { transform: translateX(0) scale(1.08); }
+}
+
+@keyframes kal-letter-hit {
+  0%, 70%, 100% { transform: translateY(0); color: var(--lime); }
+  38% { transform: translateY(-0.12em); color: var(--white); }
+}
+
+@media (max-width: 767px) {
+  .kal-hyper__grid {
+    grid-template-columns: 1fr;
+  }
+
+  .kal-hyper__stage {
+    min-height: 340px;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .kal-hyper::before,
+  .kal-hyper__stage::before,
+  .kal-hyper__stage::after,
+  .kal-hyper__frame,
+  .kal-hyper__scan,
+  .kal-hyper__logo,
+  .kal-hyper__word span {
+    animation: none !important;
+  }
+}
+
 /* ----- Portfolio ----- */
 .section {
   padding: clamp(3rem, 8vw, 6rem) 0;

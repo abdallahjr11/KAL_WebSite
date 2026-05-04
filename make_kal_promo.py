@@ -1,26 +1,36 @@
+"""Render a clean, premium KAL promo video.
+
+Creative direction:
+- Minimal black/lime/white palette from the site.
+- Slow editorial pacing.
+- Crisp typography, almost no visual noise.
+- Logo used as a quiet mark, not over-animated.
+"""
+
 import math
+import shutil
 import subprocess
 from pathlib import Path
 
 from PIL import Image, ImageDraw, ImageFont, ImageFilter
 
 ROOT = Path(__file__).resolve().parent
-OUT_DIR = ROOT / "promo_frames"
-OUT_DIR.mkdir(exist_ok=True)
+FRAMES = ROOT / "promo_frames"
 OUT = ROOT / "KAL_promo_video.mp4"
 LOGO = ROOT / "logo.png"
+
 W, H = 1920, 1080
 FPS = 30
-DURATION = 18
+DURATION = 16
 TOTAL = FPS * DURATION
 
 BLACK = (0, 0, 0)
-SOFT_BLACK = (7, 7, 7)
-CHARCOAL = (17, 17, 17)
+INK = (5, 5, 5)
+CHARCOAL = (14, 14, 14)
 WHITE = (255, 255, 255)
 LIME = (223, 255, 0)
-MUTED_LIME = (191, 218, 18)
-GREY = (172, 172, 172)
+SOFT_LIME = (210, 238, 18)
+GREY = (155, 155, 155)
 
 FONT_CANDIDATES = [
     Path("C:/Windows/Fonts/arialbd.ttf"),
@@ -28,160 +38,182 @@ FONT_CANDIDATES = [
     Path("C:/Windows/Fonts/Arial.ttf"),
 ]
 FONT_PATH = next((p for p in FONT_CANDIDATES if p.exists()), None)
-if not FONT_PATH:
-    raise SystemExit("No usable system font found")
+if FONT_PATH is None:
+    raise SystemExit("Could not find a usable Windows font")
 
-def font(size):
+def font(size: int) -> ImageFont.FreeTypeFont:
     return ImageFont.truetype(str(FONT_PATH), size)
 
-FONT_KAL = font(260)
-FONT_TITLE = font(88)
-FONT_SUB = font(42)
-FONT_SMALL = font(28)
-FONT_TINY = font(20)
+F_KAL = font(310)
+F_HEAD = font(112)
+F_SUB = font(42)
+F_SMALL = font(28)
+F_TINY = font(20)
 
 logo = Image.open(LOGO).convert("RGBA")
-logo_ratio = logo.width / logo.height
 
-def clamp(x, a=0, b=1):
+if FRAMES.exists():
+    shutil.rmtree(FRAMES)
+FRAMES.mkdir()
+
+def clamp(x, a=0.0, b=1.0):
     return max(a, min(b, x))
 
-def smooth(x):
+def ease(x):
     x = clamp(x)
     return x * x * (3 - 2 * x)
 
-def segment(t, start, end):
-    return smooth((t - start) / (end - start))
+def in_out(t, start, fade_in, fade_out, end):
+    return min(ease((t - start) / fade_in), ease((end - t) / fade_out))
 
-def fade_window(t, start, hold_start, hold_end, end):
-    return min(segment(t, start, hold_start), 1 - segment(t, hold_end, end))
+def text_size(draw, text, fnt):
+    b = draw.textbbox((0, 0), text, font=fnt)
+    return b[2] - b[0], b[3] - b[1]
 
-def lerp(a, b, x):
-    return a + (b - a) * x
+def draw_center(draw, y, text, fnt, fill, alpha=255, tracking=0):
+    if tracking == 0:
+        tw, th = text_size(draw, text, fnt)
+        draw.text(((W - tw) / 2, y), text, font=fnt, fill=fill + (int(alpha),))
+        return
+    widths = [text_size(draw, ch, fnt)[0] for ch in text]
+    total = sum(widths) + tracking * (len(text) - 1)
+    x = (W - total) / 2
+    for ch, cw in zip(text, widths):
+        draw.text((x, y), ch, font=fnt, fill=fill + (int(alpha),))
+        x += cw + tracking
 
-def text_center(draw, y, text, fnt, fill, alpha=255):
-    color = fill + (int(alpha),)
-    box = draw.textbbox((0, 0), text, font=fnt)
-    draw.text(((W - (box[2] - box[0])) / 2, y), text, font=fnt, fill=color)
+def add_vignette(img, strength=185):
+    border = Image.new("RGBA", (W, H), (0, 0, 0, 0))
+    bd = ImageDraw.Draw(border)
+    bd.rectangle([-80, -80, W + 80, H + 80], outline=(0, 0, 0, strength), width=260)
+    border = border.filter(ImageFilter.GaussianBlur(80))
+    img.alpha_composite(border)
 
-def draw_soft_background(img, t):
-    bg = Image.new("RGBA", (W, H), SOFT_BLACK + (255,))
-    d = ImageDraw.Draw(bg)
+def background(t):
+    img = Image.new("RGBA", (W, H), INK + (255,))
+    glow = Image.new("RGBA", (W, H), (0, 0, 0, 0))
+    gd = ImageDraw.Draw(glow)
+    cx = int(W * (0.50 + 0.035 * math.sin(t * 0.22)))
+    cy = int(H * (0.49 + 0.025 * math.cos(t * 0.18)))
+    for r in range(900, 30, -35):
+        power = (1 - r / 900) ** 1.65
+        alpha = int(30 * power)
+        gd.ellipse([cx - r, cy - r, cx + r, cy + r], fill=LIME + (alpha,))
+    glow = glow.filter(ImageFilter.GaussianBlur(18))
+    img.alpha_composite(glow)
+    add_vignette(img, 170)
+    return img
 
-    # Slow, breathing radial light in lime, almost like a studio glow.
-    for r in range(760, 40, -28):
-        a = int(18 * (1 - r / 760) * (0.72 + 0.28 * math.sin(t * 0.45)))
-        cx = int(W * 0.62 + math.sin(t * 0.22) * 90)
-        cy = int(H * 0.45 + math.cos(t * 0.18) * 70)
-        d.ellipse([cx - r, cy - r, cx + r, cy + r], fill=LIME + (a,))
+def paste_logo(img, cx, cy, size, alpha=255):
+    ratio = logo.width / logo.height
+    mark = logo.resize((int(size * ratio), int(size)), Image.Resampling.LANCZOS)
+    if alpha < 255:
+        mark.putalpha(mark.getchannel("A").point(lambda p: int(p * alpha / 255)))
+    img.alpha_composite(mark, (int(cx - mark.width / 2), int(cy - mark.height / 2)))
 
-    # Soft charcoal panel drifting across the canvas.
-    drift = math.sin(t * 0.16) * 90
-    d.polygon([(W * 0.50 + drift, 0), (W, 0), (W, H), (W * 0.34 + drift, H)], fill=(17, 17, 17, 140))
+def draw_rule(draw, y, progress, alpha=210):
+    width = 520 * progress
+    draw.rectangle([W / 2 - width / 2, y, W / 2 + width / 2, y + 3], fill=LIME + (int(alpha * progress),))
 
-    # Quiet grid, much less aggressive than the first version.
-    step = 96
-    grid_alpha = 13
-    off = int(t * 8) % step
-    for x in range(-step, W + step, step):
-        d.line([(x + off, 0), (x + off - 160, H)], fill=LIME + (grid_alpha,), width=1)
-    for y in range(-step, H + step, step):
-        d.line([(0, y + off // 2), (W, y + off // 2)], fill=WHITE + (6,), width=1)
+def scene_intro(img, draw, t):
+    a = in_out(t, 0.2, 1.2, 0.9, 4.4)
+    if a <= 0:
+        return
+    scale = 1 + 0.035 * (1 - ease((t - 0.2) / 2.0))
+    draw_center(draw, 350, "KAL", F_KAL, LIME, 255 * a, tracking=10)
+    paste_logo(img, W / 2, 250, 86 * scale, int(230 * a))
+    draw_rule(draw, 700, ease((t - 1.0) / 1.4), 190 * a)
+    draw_center(draw, 735, "CREATIVE STUDIO", F_SMALL, WHITE, 180 * a, tracking=7)
 
-    img.alpha_composite(bg)
+def scene_phrase(img, draw, t):
+    a = in_out(t, 4.1, 1.0, 0.8, 8.0)
+    if a <= 0:
+        return
+    x_offset = int((1 - ease((t - 4.1) / 1.2)) * 34)
+    draw.text((165 - x_offset, 360), "YOUR BRAND", font=F_HEAD, fill=WHITE + (int(245 * a),))
+    draw.text((165 - x_offset, 488), "DESERVES TO BE", font=F_HEAD, fill=WHITE + (int(245 * a),))
+    draw.text((165 - x_offset, 616), "REMEMBERED", font=F_HEAD, fill=LIME + (int(255 * a),))
+    # Clean quiet logo on right
+    draw.rectangle([1320, 305, 1665, 650], outline=LIME + (int(105 * a),), width=2)
+    paste_logo(img, 1492, 478, 145, int(210 * a))
 
-def draw_thin_frame(draw, cx, cy, size, color, alpha, angle, width=2):
-    half = size / 2
-    ca, sa = math.cos(angle), math.sin(angle)
-    pts = []
-    for x, y in [(-half, -half), (half, -half), (half, half), (-half, half)]:
-        pts.append((cx + x * ca - y * sa, cy + x * sa + y * ca))
-    draw.line(pts + [pts[0]], fill=color + (int(alpha),), width=width)
+def scene_services(img, draw, t):
+    a = in_out(t, 7.7, 1.0, 0.8, 11.6)
+    if a <= 0:
+        return
+    draw_center(draw, 295, "BRANDING, LOGOS", F_HEAD, WHITE, 245 * a)
+    draw_center(draw, 420, "AND VISUAL SYSTEMS", F_HEAD, LIME, 245 * a)
+    items = ["IDENTITY", "STRATEGY", "PACKAGING", "RECOGNITION"]
+    start_x = 430
+    y = 660
+    for n, item in enumerate(items):
+        ia = min(a, ease((t - 8.4 - n * 0.18) / 0.6))
+        x = start_x + n * 275
+        draw.text((x, y), item, font=F_SMALL, fill=WHITE + (int(165 * ia),))
+        draw.rectangle([x, y + 44, x + 155 * ia, y + 47], fill=LIME + (int(180 * ia),))
 
-    # L-shaped corner accents, calm design-system detail.
-    tick = size * 0.12
-    for x, y in pts:
-        draw.rectangle([x - 2, y - 2, x + 2, y + 2], fill=color + (int(alpha * 0.9),))
-        draw.line([(x, y), (x + tick * ca, y + tick * sa)], fill=color + (int(alpha * 0.7),), width=width)
+def scene_end(img, draw, t):
+    a = ease((t - 11.2) / 1.2)
+    if a <= 0:
+        return
+    final_fade = 1 - ease((t - 15.2) / 0.8)
+    a = min(a, final_fade)
+    paste_logo(img, W / 2, 310, 130, int(240 * a))
+    draw_center(draw, 430, "BREAK BOUNDARIES", F_HEAD, WHITE, 245 * a)
+    draw_center(draw, 565, "WITH KAL", F_HEAD, LIME, 245 * a)
+    bw = 310 * ease((t - 12.5) / 1.0)
+    bx, by = W / 2 - bw / 2, 760
+    draw.rectangle([bx, by, bx + bw, by + 74], fill=LIME + (int(240 * a),))
+    if bw > 260:
+        draw_center(draw, by + 19, "ENQUIRE", F_SMALL, BLACK, 255 * a, tracking=5)
 
-def add_blurred_line(img, y, alpha):
-    layer = Image.new("RGBA", (W, H), (0, 0, 0, 0))
-    d = ImageDraw.Draw(layer)
-    d.rectangle([0, y - 2, W, y + 2], fill=LIME + (alpha,))
-    layer = layer.filter(ImageFilter.GaussianBlur(12))
-    img.alpha_composite(layer)
-
-for i in range(TOTAL):
-    t = i / FPS
-    img = Image.new("RGBA", (W, H), (0, 0, 0, 0))
-    draw_soft_background(img, t)
+for frame in range(TOTAL):
+    t = frame / FPS
+    img = background(t)
     draw = ImageDraw.Draw(img)
 
-    # Very slow scan, more like light passing over paper.
-    scan_y = int(((t / DURATION) * 1.35 % 1) * (H + 300) - 150)
-    add_blurred_line(img, scan_y, 34)
+    # One restrained animated accent line.
+    line_a = int(42 + 18 * math.sin(t * 0.55))
+    y = int(910 + 10 * math.sin(t * 0.3))
+    draw.rectangle([140, y, W - 140, y + 1], fill=WHITE + (line_a,))
+    draw.rectangle([140, y + 8, 140 + (W - 280) * ((t / DURATION) % 1), y + 11], fill=LIME + (130,))
 
-    # Header metadata, subtle.
-    draw.text((72, 56), "KAL", font=FONT_SMALL, fill=LIME + (220,))
-    draw.text((W - 440, 58), "CREATIVE STUDIO  /  BRAND SYSTEMS", font=FONT_TINY, fill=WHITE + (120,))
+    draw.text((70, 48), "KAL", font=F_TINY, fill=LIME + (210,))
+    draw.text((W - 248, 48), "2026 PROMO", font=F_TINY, fill=WHITE + (110,))
 
-    # Central calm logo lockup.
-    cx, cy = W * 0.62, H * 0.48
-    breathe = 1 + 0.025 * math.sin(t * 0.78)
-    draw_thin_frame(draw, cx, cy, 540 * breathe, LIME, 105, t * 0.035, 2)
-    draw_thin_frame(draw, cx, cy, 390 * (1 + 0.02 * math.sin(t * 0.6 + 1)), WHITE, 65, -t * 0.025, 1)
-    draw_thin_frame(draw, cx, cy, 690 * (1 + 0.012 * math.sin(t * 0.42)), MUTED_LIME, 45, t * 0.015, 1)
+    scene_intro(img, draw, t)
+    scene_phrase(img, draw, t)
+    scene_services(img, draw, t)
+    scene_end(img, draw, t)
 
-    logo_alpha = int(255 * segment(t, 0.8, 2.6))
-    logo_size = int(220 * breathe)
-    logo_img = logo.resize((int(logo_size * logo_ratio), logo_size), Image.Resampling.LANCZOS)
-    if logo_alpha < 255:
-        logo_img.putalpha(logo_img.getchannel("A").point(lambda p: int(p * logo_alpha / 255)))
-    img.alpha_composite(logo_img, (int(cx - logo_img.width / 2), int(cy - logo_img.height / 2)))
+    # premium letterbox
+    draw.rectangle([0, 0, W, 24], fill=BLACK + (210,))
+    draw.rectangle([0, H - 24, W, H], fill=BLACK + (210,))
 
-    # A large quiet KAL wordmark as background, fading in and out.
-    word_alpha = int(32 + 24 * math.sin(t * 0.35))
-    draw.text((70, H - 315), "KAL", font=FONT_KAL, fill=LIME + (word_alpha,))
-
-    # Story text, calm scene transitions.
-    scenes = [
-        (1.2, 4.8, "A BRAND THAT BREATHES", "quiet confidence, designed to stay"),
-        (5.0, 8.6, "SHARP IDEAS", "softly framed for bold businesses"),
-        (8.8, 12.4, "IDENTITY IN MOTION", "logo, strategy, packaging, recognition"),
-        (12.6, 16.8, "KAL CREATIVE STUDIO", "your brand deserves to be remembered"),
-    ]
-    for start, end, title, sub in scenes:
-        a = fade_window(t, start, start + 0.8, end - 0.8, end)
-        if a <= 0:
-            continue
-        x = lerp(70, 110, a)
-        y = 335
-        draw.text((x, y), title, font=FONT_TITLE, fill=WHITE + (int(245 * a),))
-        draw.text((x + 3, y + 112), sub.upper(), font=FONT_SUB, fill=LIME + (int(220 * a),))
-        draw.rectangle([x + 4, y + 188, x + 4 + 360 * a, y + 192], fill=LIME + (int(180 * a),))
-
-    # Closing button, calm final call.
-    cta = segment(t, 15.0, 16.6)
-    if cta > 0:
-        bw, bh = 300 * cta, 68
-        bx, by = W / 2 - bw / 2, 815
-        draw.rectangle([bx, by, bx + bw, by + bh], fill=LIME + (int(235 * cta),))
-        if cta > 0.65:
-            text_center(draw, by + 17, "ENQUIRE", FONT_SMALL, BLACK, 255)
-
-    # Gentle letterbox bars for premium calm framing.
-    draw.rectangle([0, 0, W, 34], fill=BLACK + (180,))
-    draw.rectangle([0, H - 34, W, H], fill=BLACK + (180,))
-
-    img.convert("RGB").save(OUT_DIR / f"frame_{i:04d}.jpg", quality=94)
-    if i % FPS == 0:
-        print(f"rendered {i // FPS}/{DURATION}s")
+    img.convert("RGB").save(FRAMES / f"frame_{frame:04d}.jpg", quality=96)
+    if frame % FPS == 0:
+        print(f"rendered {frame // FPS}/{DURATION}s")
 
 cmd = [
-    "ffmpeg", "-y", "-framerate", str(FPS),
-    "-i", str(OUT_DIR / "frame_%04d.jpg"),
-    "-c:v", "libx264", "-pix_fmt", "yuv420p", "-r", str(FPS),
-    "-movflags", "+faststart", str(OUT)
+    "ffmpeg",
+    "-y",
+    "-framerate",
+    str(FPS),
+    "-i",
+    str(FRAMES / "frame_%04d.jpg"),
+    "-c:v",
+    "libx264",
+    "-crf",
+    "18",
+    "-preset",
+    "slow",
+    "-pix_fmt",
+    "yuv420p",
+    "-r",
+    str(FPS),
+    "-movflags",
+    "+faststart",
+    str(OUT),
 ]
 print("encoding", OUT)
 subprocess.run(cmd, check=True)
